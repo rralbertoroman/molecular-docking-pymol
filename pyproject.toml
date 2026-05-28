@@ -1,0 +1,11 @@
+[project]
+name = "molecular-docking-pymol"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "jupyter>=1.1.1",
+    "pandas>=3.0.3",
+    "pymol-open-source>=3.2.0a0",
+]
