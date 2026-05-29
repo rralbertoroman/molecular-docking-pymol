@@ -13,6 +13,7 @@ wheels/
 out/
 out_ligand/
 smoke_out/
+smoke_vina/
 .ipynb_checkpoints/
 
 # Editor / agent local config
