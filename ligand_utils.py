@@ -174,12 +174,11 @@ def prepare_receptor_pdbqt(
 
     cmd.reinitialize()
     cmd.load(str(tmp_clean), "rec")
-    if keep_hetero is not None:
-        if keep_hetero:
-            keep_sel = " or ".join(f"resn {r}" for r in keep_hetero)
-            cmd.remove(f"hetatm and not ({keep_sel})")
-        else:
-            cmd.remove("hetatm")
+    if keep_hetero:
+        keep_sel = " or ".join(f"resn {r}" for r in keep_hetero)
+        cmd.remove(f"hetatm and not ({keep_sel})")
+    else:
+        cmd.remove("hetatm")
     cmd.h_add("polymer")
     tmp_prepped = out_pdbqt.with_suffix(".prepped.pdb")
     cmd.save(str(tmp_prepped), "rec")
@@ -214,7 +213,7 @@ def prepare_receptor_pdbqt(
                 "mk_prepare_receptor.py is not on PATH. Install meeko CLI."
             )
         proc = subprocess.run(
-            [exe, "-i", str(tmp_prepped), "-o", str(out_pdbqt)],
+            [exe, "-i", str(tmp_prepped), "-p", str(out_pdbqt)],
             capture_output=True,
             text=True,
         )
