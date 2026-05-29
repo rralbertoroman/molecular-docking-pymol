@@ -212,18 +212,19 @@ def align_to_native(
     model_pdb = _abs(model_pdb)
     native_pdb = _abs(native_pdb)
 
+    # "model" is a reserved PyMOL selection keyword; name the object "mobile".
     cmd.reinitialize()
-    cmd.load(str(model_pdb), "model")
+    cmd.load(str(model_pdb), "mobile")
     cmd.load(str(native_pdb), "native")
 
     if method == "cealign":
-        result = cmd.cealign("native", "model")
+        result = cmd.cealign("native", "mobile")
         info = {"rmsd": float(result["RMSD"]), "n_atoms": int(result["alignment_length"])}
     elif method == "super":
-        r = cmd.super("model", "native")
+        r = cmd.super("mobile", "native")
         info = {"rmsd": float(r[0]), "n_atoms": int(r[1])}
     else:
-        r = cmd.align("model", "native")
+        r = cmd.align("mobile", "native")
         info = {"rmsd": float(r[0]), "n_atoms": int(r[1])}
 
     if out_png is not None:
@@ -231,7 +232,7 @@ def align_to_native(
         out_png.parent.mkdir(parents=True, exist_ok=True)
         cmd.hide("everything")
         cmd.show("cartoon")
-        cmd.color("cyan", "model")
+        cmd.color("cyan", "mobile")
         cmd.color("magenta", "native")
         _setup_view(width, height)
         cmd.orient()

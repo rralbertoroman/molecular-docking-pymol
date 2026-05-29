@@ -443,16 +443,20 @@ def ligand_contacts(
 
     cmd.select("contact_res", f"byres (polymer within {cutoff} of (resn {ligand_resn}))")
 
-    residues: list[tuple[str, int, str]] = []
-    seen: set[tuple[str, int]] = set()
+    # cmd.iterate compiles its expression in single-statement mode, so an inline
+    # `if` raises "multiple statements found"; collect every CA row and dedupe here.
+    ca_rows: list[tuple[str, int, str]] = []
     cmd.iterate(
         "contact_res and name CA",
-        "key=(chain, int(resi))\n"
-        "if key not in seen:\n"
-        "    seen.add(key)\n"
-        "    residues.append((chain, int(resi), resn))",
-        space={"residues": residues, "seen": seen},
+        "ca_rows.append((chain, int(resi), resn))",
+        space={"ca_rows": ca_rows},
     )
+    residues: list[tuple[str, int, str]] = []
+    seen: set[tuple[str, int]] = set()
+    for chain, resi, resn in ca_rows:
+        if (chain, resi) not in seen:
+            seen.add((chain, resi))
+            residues.append((chain, resi, resn))
 
     rows: list[dict] = []
     cutoff_sq = cutoff * cutoff
