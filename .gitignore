@@ -11,5 +11,9 @@ wheels/
 
 # Workflow outputs
 out/
+out_ligand/
 smoke_out/
 .ipynb_checkpoints/
+
+# Editor / agent local config
+.claude/

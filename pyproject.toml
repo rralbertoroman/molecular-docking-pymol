@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "jupyter>=1.1.1",
+    "meeko>=0.7.1",
     "pandas>=3.0.3",
     "pymol-open-source>=3.2.0a0",
+    "rdkit>=2026.3.2",
+    "requests>=2.34.2",
 ]
