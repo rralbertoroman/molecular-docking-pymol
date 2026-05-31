@@ -494,6 +494,120 @@ def ligand_contacts(
     return df.sort_values("min_dist").reset_index(drop=True)
 
 
+_SKIP_RESN = {"GLY", "ALA", "PRO"}
+
+
+def mutate_to_ala(
+    pdb_path: str | Path,
+    chain: str,
+    resi: int,
+    out_pdb: str | Path,
+) -> Path:
+    """Mutate one residue to alanine by truncating its sidechain to Cβ.
+
+    The classic computational alanine-scan trick: keep the backbone (N, CA, C, O,
+    OXT) plus CB, drop the rest of the sidechain, and rename the residue to ALA.
+    The subsequent `prepare_receptor_pdbqt` re-adds hydrogens, capping CB as a
+    methyl. Deterministic and rotamer-library-free (the PyMOL mutagenesis wizard's
+    open-source rotamer library is incomplete).
+    """
+    pdb_path = _abs(pdb_path)
+    out_pdb = _abs(out_pdb)
+    out_pdb.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd.reinitialize()
+    cmd.load(str(pdb_path), "rec")
+    res_sel = f"rec and chain {chain} and resi {resi}"
+    if cmd.count_atoms(res_sel) == 0:
+        raise RuntimeError(f"No atoms found for chain {chain} resi {resi}")
+
+    cmd.remove(f"({res_sel}) and not (name N+CA+C+O+OXT+CB)")
+    cmd.alter(res_sel, 'resn="ALA"')
+    cmd.sort()
+    cmd.save(str(out_pdb), "rec")
+    cmd.delete("all")
+    return out_pdb
+
+
+def alanine_scan(
+    rec_clean: str | Path,
+    lig_pdbqt: str | Path,
+    box: dict,
+    residues: list[tuple[str, int, str]],
+    out_dir: str | Path,
+    wt_affinity: float,
+    exhaustiveness: int = 8,
+    num_modes: int = 9,
+    seed: int | None = 42,
+    hotspot_cutoff: float = 1.0,
+    force: bool = False,
+) -> pd.DataFrame:
+    """Computational alanine scan: mutate each residue -> Ala, re-dock, score ddG.
+
+    For every (chain, resi, resn) the residue is mutated to alanine, the receptor
+    is re-prepared and the ligand re-docked in the same `box`. ddG = best mutant
+    affinity - `wt_affinity`; ddG > 0 means weaker binding (a hotspot). GLY/ALA/PRO
+    are recorded but skipped (ddG = NaN).
+    """
+    out_dir = _abs(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    lig_pdbqt = _abs(lig_pdbqt)
+
+    rows: list[dict] = []
+    for chain, resi, resn in residues:
+        resn = resn.upper()
+        base = {
+            "chain": chain,
+            "resi": int(resi),
+            "resn": resn,
+            "wt_affinity": round(float(wt_affinity), 3),
+        }
+        if resn in _SKIP_RESN:
+            rows.append({**base, "mut_affinity": None, "ddG": None, "is_hotspot": False})
+            continue
+
+        tag = f"{resn}{resi}{chain}"
+        mut_pdb = out_dir / f"mut_{tag}_ALA.pdb"
+        mut_pdbqt = out_dir / f"mut_{tag}_ALA.pdbqt"
+        docked = out_dir / f"docked_{tag}_ALA.pdbqt"
+
+        if force or not docked.exists():
+            mutate_to_ala(rec_clean, chain, resi, mut_pdb)
+            prepare_receptor_pdbqt(mut_pdb, mut_pdbqt)
+            df = run_vina(
+                receptor_pdbqt=mut_pdbqt,
+                ligand_pdbqt=lig_pdbqt,
+                box=box,
+                out_pdbqt=docked,
+                exhaustiveness=exhaustiveness,
+                num_modes=num_modes,
+                seed=seed,
+            )
+        else:
+            df = _parse_vina_pdbqt(docked)
+
+        if df.empty:
+            rows.append({**base, "mut_affinity": None, "ddG": None, "is_hotspot": False})
+            continue
+
+        mut_aff = float(df["affinity"].min())
+        ddg = mut_aff - float(wt_affinity)
+        rows.append(
+            {
+                **base,
+                "mut_affinity": round(mut_aff, 3),
+                "ddG": round(ddg, 3),
+                "is_hotspot": bool(ddg >= hotspot_cutoff),
+            }
+        )
+
+    cols = ["chain", "resi", "resn", "wt_affinity", "mut_affinity", "ddG", "is_hotspot"]
+    out_df = pd.DataFrame(rows, columns=cols)
+    out_df = out_df.sort_values("ddG", ascending=False, na_position="last").reset_index(drop=True)
+    out_df.to_csv(out_dir / "ala_scan.csv", index=False)
+    return out_df
+
+
 def render_pose(
     receptor_pdb: str | Path,
     pose_pdbqt: str | Path,
