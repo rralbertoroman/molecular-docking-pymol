@@ -11,5 +11,13 @@ wheels/
 
 # Workflow outputs
 out/
+out_ligand/
+out_compare/
+exports_pdf/
 smoke_out/
+smoke_vina/
 .ipynb_checkpoints/
+
+# Editor / agent local config
+.claude/
+ligand_docking.pdf

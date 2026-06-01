@@ -5,7 +5,19 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "biopython>=1.84",
+    "gemmi>=0.7.5",
     "jupyter>=1.1.1",
+    "matplotlib>=3.10",
+    "mdanalysis>=2.10",
+    "meeko>=0.7.1",
+    "openmm>=8.3",
     "pandas>=3.0.3",
+    "pdbfixer>=1.12",
+    "playwright>=1.60",
+    "prody>=2.6.1",
     "pymol-open-source>=3.2.0a0",
+    "rdkit>=2026.3.2",
+    "requests>=2.34.2",
+    "scipy>=1.17.1",
 ]
